@@ -2,8 +2,9 @@ const { getStockCode, getListStockData } = require("./stock.js");
 const moment = require("moment");
 const fs = require("fs");
 const path = require("path");
+const { industryTypes } = require("./constants.js");
 
-const stockTypes = ["HOSE", "HNX", "UPCOM"];
+const stockTypes = ["HOSE", "HNX", "UPCOM", "VN30"];
 
 const crawlData = async (stockType) => {
   const currentTime = moment().format("HH:mm");
@@ -19,7 +20,14 @@ const crawlData = async (stockType) => {
 
     const stockDatas = await getListStockData(stringStockCodes);
     const datas = stockDatas.map((data) => {
+      industryTypes.forEach((industryType) => {
+        if (industryType.stockCodes.includes(data.sym)) {
+          data.industry = industryType.name;
+        }
+      });
+
       return {
+        id: data.id,
         "mã CK": data.sym,
         "giá trần": data.c,
         "giá sàn": data.f,
@@ -31,7 +39,7 @@ const crawlData = async (stockType) => {
           "giá 3": data.g3.split("|")[0],
           "kl 3": data.g3.split("|")[1],
         },
-        "bên mua": {
+        "bên bán": {
           "giá 1": data.g4.split("|")[0],
           "kl 1": data.g4.split("|")[1],
           "giá 2": data.g5.split("|")[0],
@@ -40,19 +48,20 @@ const crawlData = async (stockType) => {
           "kl 3": data.g6.split("|")[1],
         },
         "khớp lệnh": {
-          giá: data.lastPrice,
+          "giá cuối cùng giao dịch": data.lastPrice,
           kl: data.lastVolume,
           "tổng kl": data.lot,
-          ot: data.ot,
+          "tỷ lệ biến động": data.ot,
         },
-        "trung bình": data.avePrice,
-        cao: data.highPrice,
-        thấp: data.lowPrice,
+        "giá trung bình": data.avePrice,
+        "giá cao nhất trong phiên": data.highPrice,
+        "giá thấp nhất trong phiên": data.lowPrice,
         "ĐTNN mua": data.fBVol,
         "ĐTNN bán": data.fSVolume,
         "ĐTNN room": data.fRoom,
         "Dư mua": data.fBValue,
         "Dư bán": data.fSValue,
+        Ngành: data.industry,
         crawledTime: crawledTime,
       };
     });
@@ -92,6 +101,9 @@ const updateDataInJsonFile = (stockType, datas) => {
   });
 };
 
+// crawl data at first time
+stockTypes.forEach((stockType) => crawlData(stockType.toLowerCase()));
+
 setInterval(() => {
   stockTypes.forEach((stockType) => crawlData(stockType.toLowerCase()));
-}, 30 * 60 * 1000); // 30 phút
+}, 5 * 60 * 1000); // 10 phút
