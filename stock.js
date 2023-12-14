@@ -22,4 +22,16 @@ const getListStockData = async (listStock) => {
   }
 };
 
-module.exports = { getStockCode, getListStockData };
+const getIndustry = async (code) => {
+  const url = `https://histdatafeed.vps.com.vn/industry/symbols/${code}`;
+  try {
+    const response = await axios.get(url);
+    return response.data.data.filter(
+      (item) => item !== null && item.length > 0
+    );
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+module.exports = { getStockCode, getListStockData, getIndustry };

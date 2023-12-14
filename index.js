@@ -1,4 +1,4 @@
-const { getStockCode, getListStockData } = require("./stock.js");
+const { getStockCode, getListStockData, getIndustry } = require("./stock.js");
 const moment = require("moment");
 const fs = require("fs");
 const path = require("path");
@@ -6,7 +6,7 @@ const { industryTypes } = require("./constants.js");
 
 const stockTypes = ["HOSE", "HNX", "UPCOM", "VN30"];
 
-const crawlData = async (stockType) => {
+const crawlData = async (stockType, listIndustryTypes) => {
   const currentTime = moment().format("HH:mm");
 
   if (
@@ -20,14 +20,13 @@ const crawlData = async (stockType) => {
 
     const stockDatas = await getListStockData(stringStockCodes);
     const datas = stockDatas.map((data) => {
-      industryTypes.forEach((industryType) => {
+      listIndustryTypes.forEach((industryType) => {
         if (industryType.stockCodes.includes(data.sym)) {
           data.industry = industryType.name;
         }
       });
 
       return {
-        id: data.id,
         "mã CK": data.sym,
         "giá trần": data.c,
         "giá sàn": data.f,
@@ -65,6 +64,7 @@ const crawlData = async (stockType) => {
         crawledTime: crawledTime,
       };
     });
+
     updateDataInJsonFile(stockType, datas);
   }
 };
@@ -101,9 +101,28 @@ const updateDataInJsonFile = (stockType, datas) => {
   });
 };
 
-// crawl data at first time
-stockTypes.forEach((stockType) => crawlData(stockType.toLowerCase()));
+const init = async () => {
+  const listIndustryTypes = await Promise.all(
+    industryTypes.map(async (industryType) => {
+      const industry = await getIndustry(industryType.code);
 
-setInterval(() => {
-  stockTypes.forEach((stockType) => crawlData(stockType.toLowerCase()));
-}, 5 * 60 * 1000); // 10 phút
+      return {
+        name: industryType.name,
+        code: industryType.code,
+        stockCodes: industry,
+      };
+    })
+  );
+
+  stockTypes.forEach((stockType) =>
+    crawlData(stockType.toLowerCase(), listIndustryTypes)
+  );
+
+  setInterval(() => {
+    stockTypes.forEach((stockType) =>
+      crawlData(stockType.toLowerCase(), listIndustryTypes)
+    );
+  }, 5 * 60 * 1000); // 5 phút
+};
+
+init();
